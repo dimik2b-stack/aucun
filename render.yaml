@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: whale-radar-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python whale_bot.py
+    envVars:
+      - key: PORT
+        value: 8080
+    healthCheckPath: /health
