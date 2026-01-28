@@ -20,7 +20,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-TELEGRAM_BOT_TOKEN = "8543416837:AAFc49U9V1xQE3ofuxSOjzvgmqKS8x3KOXA"
+TELEGRAM_BOT_TOKEN = "8547895751:AAFupdZqD0yVDhmdZ2AgIqnzhvDfdfXU7Ns"
 CONFIG_FILE = "whale_config_binance.json"
 USER_SETTINGS_DIR = "user_settings"
 PORT = int(os.environ.get("PORT", 8080))  # Pour Railway/Render/Heroku
