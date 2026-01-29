@@ -1094,7 +1094,16 @@ class TelegramBot:
                 "donate": "☕ Faire un don",
                 "donation_message": "☕ *SOUTENEZ LE PROJET*",
                 "thanks_for_donation": "🙏 Merci pour votre générosité!",
-                "copy": "📋 Copier"
+                "copy": "📋 Copier",
+                "choose_language": "🌍 *CHOISIR LA LANGUE*",
+                "language_changed": "✅ Langue changée en Français",
+                "language_changed_en": "✅ Language changed to English",
+                "alert_settings": "🔔 *PARAMÈTRES D'ALERTE*",
+                "alert_settings_en": "🔔 *ALERT SETTINGS*",
+                "alert_level_enabled": "✅ Activé",
+                "alert_level_disabled": "❌ Désactivé",
+                "alert_toggle": "Basculer",
+                "current_settings": "⚙️ Paramètres actuels"
             },
             "en": {
                 "welcome": "🤖 *WHALE RADAR BOT*\n\nMonitor large transactions across all blockchains!",
@@ -1127,7 +1136,16 @@ class TelegramBot:
                 "donate": "☕ Make a donation",
                 "donation_message": "☕ *SUPPORT THE PROJECT*",
                 "thanks_for_donation": "🙏 Thank you for your generosity!",
-                "copy": "📋 Copy"
+                "copy": "📋 Copy",
+                "choose_language": "🌍 *CHOOSE LANGUAGE*",
+                "language_changed": "✅ Language changed to English",
+                "language_changed_en": "✅ Language changed to English",
+                "alert_settings": "🔔 *ALERT SETTINGS*",
+                "alert_settings_en": "🔔 *ALERT SETTINGS*",
+                "alert_level_enabled": "✅ Enabled",
+                "alert_level_disabled": "❌ Disabled",
+                "alert_toggle": "Toggle",
+                "current_settings": "⚙️ Current settings"
             }
         }
         
@@ -1152,6 +1170,13 @@ class TelegramBot:
         try:
             cleaned = text
             
+            # Remplacer les points problématiques dans les nombres
+            import re
+            # Pour les nombres comme 34\.286 -> 34.286
+            cleaned = re.sub(r'(\d+)\\\\.(\d+)', r'\1.\2', cleaned)
+            # Pour les séparateurs de milliers
+            cleaned = re.sub(r'(\d),(\\d)', r'\1,\2', cleaned)
+            
             # S'assurer que les astérisques sont correctement appairés
             asterisk_count = cleaned.count('*')
             if asterisk_count % 2 != 0:
@@ -1162,8 +1187,8 @@ class TelegramBot:
             if underscore_count % 2 != 0:
                 cleaned += '_'
             
-            # Échapper les caractères spéciaux problématiques
-            special_chars = ['[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+            # Échapper les caractères spéciaux problématiques (sauf . pour les nombres)
+            special_chars = ['[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '!']
             for char in special_chars:
                 if char in cleaned:
                     cleaned = cleaned.replace(char, f'\\{char}')
@@ -1252,7 +1277,7 @@ class TelegramBot:
             payload = {
                 "chat_id": chat_id,
                 "text": cleaned_text,
-                "parse_mode": "Markdown",
+                "parse_mode": "MarkdownV2",
                 "disable_web_page_preview": True
             }
             
@@ -1286,7 +1311,7 @@ class TelegramBot:
                         error_text = await resp.text()
                         logger.error(f"Telegram API error: {resp.status} - {error_text}")
                         
-                        if "can't parse entities" in error_text:
+                        if "can't parse entities" in error_text or "Bad Request" in error_text:
                             return await self._send_without_markdown(chat_id, text, reply_markup)
                         
                         return False
@@ -1333,24 +1358,24 @@ class TelegramBot:
             await self.send_onboarding_menu(chat_id, first_time=True)
             return
         
-        menu_text = f"🤖 *WHALE RADAR BOT*\n\n"
-        menu_text += f"👤 Utilisateur: {chat_id[:8]}...\n"
-        menu_text += f"📊 Status: {len(user_tokens)} tokens activés\n"
-        menu_text += f"🌍 Langue: {'Français' if user_lang == 'fr' else 'English'}\n"
+        menu_text = self.get_text("welcome", user_lang) + "\n\n"
+        menu_text += f"👤 {self.get_text('user', user_lang, 'Utilisateur')}: {chat_id[:8]}...\n"
+        menu_text += f"📊 {self.get_text('status', user_lang, 'Status')}: {len(user_tokens)} {self.get_text('tokens', user_lang, 'tokens')}\n"
+        menu_text += f"🌍 {self.get_text('language', user_lang)}: {'Français' if user_lang == 'fr' else 'English'}\n"
         
-        menu_text += f"\n📱 *MENU PRINCIPAL*:"
+        menu_text += f"\n{self.get_text('menu', user_lang)}:"
         
         keyboard_buttons = [
-            [{"text": "🎯 Sélectionner Tokens", "callback_data": "select_tokens"}],
-            [{"text": "⚙️ Gérer Tokens", "callback_data": "manage_tokens"}],
-            [{"text": "⚙️ Paramètres", "callback_data": "settings"}],
-            [{"text": "📊 Mes Statistiques", "callback_data": "stats"}],
-            [{"text": "📋 Mes Tokens", "callback_data": "list_tokens"}],
-            [{"text": "☕ Faire un don", "callback_data": "donate"}]
+            [{"text": self.get_text("select_tokens", user_lang), "callback_data": "select_tokens"}],
+            [{"text": self.get_text("manage_tokens", user_lang), "callback_data": "manage_tokens"}],
+            [{"text": self.get_text("settings", user_lang), "callback_data": "settings"}],
+            [{"text": self.get_text("stats", user_lang), "callback_data": "stats"}],
+            [{"text": self.get_text("list_tokens", user_lang), "callback_data": "list_tokens"}],
+            [{"text": self.get_text("donate", user_lang), "callback_data": "donate"}]
         ]
         
         if chat_id in self.admin_users:
-            keyboard_buttons.append([{"text": "👑 Admin", "callback_data": "admin_menu"}])
+            keyboard_buttons.append([{"text": self.get_text("admin", user_lang), "callback_data": "admin_menu"}])
         
         keyboard = {"inline_keyboard": keyboard_buttons}
         
@@ -1363,12 +1388,12 @@ class TelegramBot:
         enabled_tokens = user_settings.get("enabled_tokens", [])
         
         if first_time:
-            text = f"🎉 *BIENVENUE SUR WHALE RADAR*\n\n"
+            text = self.get_text("onboarding_welcome", user_lang) + "\n\n"
         else:
-            text = f"🎯 *SÉLECTION DES TOKENS*\n\n"
+            text = self.get_text("select_tokens", user_lang) + "\n\n"
         
-        text += f"Cliquez sur les tokens pour les activer/désactiver\n"
-        text += f"✅ = Activé | ❌ = Désactivé\n\n"
+        text += f"{self.get_text('click_to_toggle', user_lang, 'Cliquez sur les tokens pour les activer/désactiver')}\n"
+        text += f"✅ = {self.get_text('enabled', user_lang)} | ❌ = {self.get_text('disabled', user_lang)}\n\n"
         
         all_tokens = self.config.get_all_tokens()
         networks = {}
@@ -1400,8 +1425,8 @@ class TelegramBot:
                 
                 text += f"{status} **{display_name}** - ${threshold:,}\n"
         
-        text += f"\nPage {page+1}/{total_pages}"
-        text += f"\n✅ {len(enabled_tokens)} tokens sélectionnés"
+        text += f"\n{self.get_text('page', user_lang, 'Page')} {page+1}/{total_pages}"
+        text += f"\n✅ {len(enabled_tokens)} {self.get_text('tokens_selected', user_lang, 'tokens sélectionnés')}"
         
         keyboard_buttons = []
         
@@ -1422,29 +1447,29 @@ class TelegramBot:
                 keyboard_buttons.append(row)
         
         keyboard_buttons.append([
-            {"text": "✅ Tout Sélectionner", "callback_data": "onboarding_select_all"},
-            {"text": "❌ Tout Désélectionner", "callback_data": "onboarding_deselect_all"}
+            {"text": self.get_text("select_all", user_lang), "callback_data": "onboarding_select_all"},
+            {"text": self.get_text("deselect_all", user_lang), "callback_data": "onboarding_deselect_all"}
         ])
         
         nav_buttons = []
         if page > 0:
-            nav_buttons.append({"text": "⬅️ Précédent", "callback_data": f"onboarding_page_{page-1}"})
+            nav_buttons.append({"text": self.get_text("previous", user_lang), "callback_data": f"onboarding_page_{page-1}"})
         
         nav_buttons.append({"text": f"{page+1}/{total_pages}", "callback_data": "noop"})
         
         if page < total_pages - 1:
-            nav_buttons.append({"text": "Suivant ➡️", "callback_data": f"onboarding_page_{page+1}"})
+            nav_buttons.append({"text": self.get_text("next", user_lang), "callback_data": f"onboarding_page_{page+1}"})
         
         if nav_buttons:
             keyboard_buttons.append(nav_buttons)
         
         if len(enabled_tokens) > 0:
-            keyboard_buttons.append([{"text": "🚀 Terminer", "callback_data": "onboarding_finish"}])
+            keyboard_buttons.append([{"text": self.get_text("finish", user_lang), "callback_data": "onboarding_finish"}])
         else:
-            text += f"\n\n⚠️ Vous devez sélectionner au moins un token"
+            text += f"\n\n⚠️ {self.get_text('no_tokens_selected', user_lang)}"
         
         if not first_time:
-            keyboard_buttons.append([{"text": "⬅️ Retour", "callback_data": "main_menu"}])
+            keyboard_buttons.append([{"text": self.get_text("back", user_lang), "callback_data": "main_menu"}])
         
         keyboard = {"inline_keyboard": keyboard_buttons}
         
@@ -1545,6 +1570,9 @@ class TelegramBot:
             elif command == "/list":
                 await self.show_token_list(chat_id)
             
+            elif command == "/language" or command == "/lang":
+                await self.send_language_menu(chat_id)
+            
             elif command == "/admin" and chat_id in self.admin_users:
                 await self.send_admin_menu(chat_id)
             
@@ -1568,6 +1596,9 @@ class TelegramBot:
         
         elif text.lower() in ["donation", "don", "donate", "café", "cafe", "☕"]:
             await self.send_donation_menu(chat_id)
+        
+        elif text.lower() in ["langue", "language", "lang", "🌍"]:
+            await self.send_language_menu(chat_id)
         
         else:
             await self.send_main_menu(chat_id)
@@ -1627,11 +1658,11 @@ class TelegramBot:
                 user_settings["onboarding_complete"] = True
                 self.user_manager.update_user(chat_id, user_settings)
                 
-                text = f"✅ *CONFIGURATION TERMINÉE*\n\nVous surveillez maintenant {len(enabled_tokens)} tokens."
+                text = self.get_text("onboarding_complete", user_lang).replace("{count}", str(len(enabled_tokens)))
                 await self.send(chat_id, text)
                 await self.send_main_menu(chat_id)
             else:
-                await self.send(chat_id, "⚠️ *AUCUN TOKEN SÉLECTIONNÉ*")
+                await self.send(chat_id, self.get_text("no_tokens_selected", user_lang))
         
         elif callback_data == "manage_tokens":
             await self.send_token_management(chat_id)
@@ -1651,11 +1682,42 @@ class TelegramBot:
         elif callback_data in ["copy_btc", "copy_eth", "copy_usdt"]:
             crypto = callback_data[5:].upper()
             address = DONATION_ADDRESSES.get(crypto, "")
-            await self.send(chat_id, f"📋 Copie: {crypto}\n`{address}`")
+            await self.send(chat_id, f"📋 {self.get_text('copy', user_lang)}: {crypto}\n`{address}`")
             await self.send_thank_you_message(chat_id)
         
         elif callback_data == "admin_menu" and chat_id in self.admin_users:
             await self.send_admin_menu(chat_id)
+        
+        elif callback_data == "language_menu":
+            await self.send_language_menu(chat_id)
+        
+        elif callback_data in ["set_language_fr", "set_language_en"]:
+            lang = callback_data[13:]
+            user_settings = self.user_manager.get_user(chat_id)
+            user_settings["language"] = lang
+            self.user_manager.update_user(chat_id, user_settings)
+            
+            if lang == "fr":
+                await self.send(chat_id, self.get_text("language_changed", "fr"))
+            else:
+                await self.send(chat_id, self.get_text("language_changed_en", "en"))
+            
+            await self.send_settings_menu(chat_id)
+        
+        elif callback_data == "alert_levels":
+            await self.send_alert_settings_menu(chat_id)
+        
+        elif callback_data.startswith("alert_toggle_"):
+            level = callback_data[13:]
+            user_settings = self.user_manager.get_user(chat_id)
+            alert_levels = user_settings.get("alert_levels", {})
+            
+            if level in alert_levels:
+                alert_levels[level] = not alert_levels[level]
+                user_settings["alert_levels"] = alert_levels
+                self.user_manager.update_user(chat_id, user_settings)
+            
+            await self.send_alert_settings_menu(chat_id)
         
         elif callback_data == "noop":
             pass
@@ -1680,9 +1742,11 @@ class TelegramBot:
         all_tokens = self.config.get_all_tokens()
         user_settings = self.user_manager.get_user(chat_id)
         enabled_tokens = user_settings.get("enabled_tokens", [])
+        user_lang = self.get_user_lang(chat_id)
         
-        text = f"🔔 *GÉRER LES TOKENS*\n\n"
-        text += f"Cliquez pour activer/désactiver:\n✅ = Activé | ❌ = Désactivé\n\n"
+        text = f"🔔 *{self.get_text('manage_tokens', user_lang).upper()}*\n\n"
+        text += f"{self.get_text('click_to_toggle', user_lang, 'Cliquez pour activer/désactiver')}:\n"
+        text += f"✅ = {self.get_text('enabled', user_lang)} | ❌ = {self.get_text('disabled', user_lang)}\n\n"
         
         keyboard_buttons = []
         
@@ -1697,11 +1761,11 @@ class TelegramBot:
             ])
         
         keyboard_buttons.append([
-            {"text": "✅ Tout Activer", "callback_data": "enable_all"},
-            {"text": "❌ Tout Désactiver", "callback_data": "disable_all"}
+            {"text": self.get_text("enable_all", user_lang), "callback_data": "enable_all"},
+            {"text": self.get_text("disable_all", user_lang), "callback_data": "disable_all"}
         ])
         
-        keyboard_buttons.append([{"text": "⬅️ Retour", "callback_data": "main_menu"}])
+        keyboard_buttons.append([{"text": self.get_text("back", user_lang), "callback_data": "main_menu"}])
         
         keyboard = {"inline_keyboard": keyboard_buttons}
         
@@ -1713,15 +1777,67 @@ class TelegramBot:
         
         keyboard = {
             "inline_keyboard": [
-                [{"text": "🌍 Langue", "callback_data": "language_menu"}],
-                [{"text": "🎯 Modifier Seuil", "callback_data": "change_threshold"}],
-                [{"text": "🔔 Niveaux d'Alerte", "callback_data": "alert_levels"}],
-                [{"text": "⬅️ Retour", "callback_data": "main_menu"}]
+                [{"text": self.get_text("language", user_lang), "callback_data": "language_menu"}],
+                [{"text": self.get_text("alert_levels", user_lang), "callback_data": "alert_levels"}],
+                [{"text": self.get_text("threshold", user_lang), "callback_data": "change_threshold"}],
+                [{"text": self.get_text("back", user_lang), "callback_data": "main_menu"}]
             ]
         }
         
-        text = f"⚙️ *PARAMÈTRES*\n\n"
-        text += f"Sélectionnez une option:"
+        text = f"⚙️ *{self.get_text('settings', user_lang).upper()}*\n\n"
+        text += f"{self.get_text('select_option', user_lang, 'Sélectionnez une option')}:"
+        
+        await self.send(chat_id, text, keyboard)
+    
+    async def send_language_menu(self, chat_id: str):
+        """Send language selection menu"""
+        user_lang = self.get_user_lang(chat_id)
+        
+        text = f"🌍 *{self.get_text('choose_language', user_lang)}*\n\n"
+        text += f"{self.get_text('current_language', user_lang, 'Langue actuelle')}: "
+        text += f"**{'Français' if user_lang == 'fr' else 'English'}**\n\n"
+        text += f"{self.get_text('select_language', user_lang, 'Choisissez votre langue préférée')}:"
+        
+        keyboard = {
+            "inline_keyboard": [
+                [{"text": "🇫🇷 Français", "callback_data": "set_language_fr"}],
+                [{"text": "🇬🇧 English", "callback_data": "set_language_en"}],
+                [{"text": self.get_text("back", user_lang), "callback_data": "settings"}]
+            ]
+        }
+        
+        await self.send(chat_id, text, keyboard)
+    
+    async def send_alert_settings_menu(self, chat_id: str):
+        """Send alert settings menu"""
+        user_lang = self.get_user_lang(chat_id)
+        user_settings = self.user_manager.get_user(chat_id)
+        alert_levels = user_settings.get("alert_levels", {})
+        
+        text = f"🔔 *{self.get_text('alert_settings', user_lang)}*\n\n"
+        
+        # Niveaux d'alerte avec descriptions
+        alert_descriptions = {
+            "mega": {"fr": "🐋 MÉGA WHALE (20x+ du seuil)", "en": "🐋 MEGA WHALE (20x+ threshold)"},
+            "huge": {"fr": "🐳 WHALE ÉNORME (10-20x)", "en": "🐳 HUGE WHALE (10-20x)"},
+            "large": {"fr": "🐬 GROSSE WHALE (5-10x)", "en": "🐬 LARGE WHALE (5-10x)"},
+            "whale": {"fr": "🐟 WHALE (2-5x)", "en": "🐟 WHALE (2-5x)"},
+            "significant": {"fr": "🦈 GROSSE ACTIVITÉ (1-2x)", "en": "🦈 BIG ACTIVITY (1-2x)"}
+        }
+        
+        keyboard_buttons = []
+        
+        for level_key, level_desc in alert_descriptions.items():
+            status = "✅" if alert_levels.get(level_key, True) else "❌"
+            description = level_desc.get(user_lang, level_desc["fr"])
+            
+            keyboard_buttons.append([
+                {"text": f"{status} {description}", "callback_data": f"alert_toggle_{level_key}"}
+            ])
+        
+        keyboard_buttons.append([{"text": self.get_text("back", user_lang), "callback_data": "settings"}])
+        
+        keyboard = {"inline_keyboard": keyboard_buttons}
         
         await self.send(chat_id, text, keyboard)
     
@@ -1729,20 +1845,29 @@ class TelegramBot:
         """Send donation menu"""
         user_lang = self.get_user_lang(chat_id)
         
-        donation_message = f"☕ *SOUTENEZ LE PROJET*\n\n"
-        donation_message += f"Whale Radar est un projet gratuit et open-source.\n"
-        donation_message += f"Si vous appréciez ce bot, vous pouvez m'offrir un café!\n\n"
+        donation_message = f"☕ *{self.get_text('donation_message', user_lang)}*\n\n"
+        if user_lang == "fr":
+            donation_message += f"Whale Radar est un projet gratuit et open-source.\n"
+            donation_message += f"Si vous appréciez ce bot, vous pouvez m'offrir un café!\n\n"
+        else:
+            donation_message += f"Whale Radar is a free and open-source project.\n"
+            donation_message += f"If you appreciate this bot, you can buy me a coffee!\n\n"
+        
         donation_message += f"₿ **Bitcoin (BTC):**\n`{DONATION_ADDRESSES['BTC']}`\n\n"
         donation_message += f"Ξ **Ethereum (ETH):**\n`{DONATION_ADDRESSES['ETH']}`\n\n"
         donation_message += f"💵 **USDT (ERC-20):**\n`{DONATION_ADDRESSES['USDT']}`\n\n"
-        donation_message += f"*Merci pour votre soutien!* 😊"
+        
+        if user_lang == "fr":
+            donation_message += f"*Merci pour votre soutien!* 😊"
+        else:
+            donation_message += f"*Thank you for your support!* 😊"
         
         keyboard = {
             "inline_keyboard": [
-                [{"text": "📋 Copier BTC", "callback_data": "copy_btc"}],
-                [{"text": "📋 Copier ETH", "callback_data": "copy_eth"}],
-                [{"text": "📋 Copier USDT", "callback_data": "copy_usdt"}],
-                [{"text": "⬅️ Retour", "callback_data": "main_menu"}]
+                [{"text": f"📋 {self.get_text('copy', user_lang)} BTC", "callback_data": "copy_btc"}],
+                [{"text": f"📋 {self.get_text('copy', user_lang)} ETH", "callback_data": "copy_eth"}],
+                [{"text": f"📋 {self.get_text('copy', user_lang)} USDT", "callback_data": "copy_usdt"}],
+                [{"text": self.get_text("back", user_lang), "callback_data": "main_menu"}]
             ]
         }
         
@@ -1752,17 +1877,26 @@ class TelegramBot:
         """Send thank you message"""
         user_lang = self.get_user_lang(chat_id)
         
-        text = f"🙏 Merci pour votre générosité!\n\n"
-        text += f"🥰 *Votre générosité me permet de:*\n"
-        text += f"• Améliorer les performances du bot\n"
-        text += f"• Ajouter de nouvelles blockchains\n"
-        text += f"• Développer de nouvelles fonctionnalités\n"
-        text += f"• Maintenir le service gratuit\n\n"
-        text += f"💙 Merci de faire partie de l'aventure Whale Radar!"
+        text = f"🙏 {self.get_text('thanks_for_donation', user_lang)}!\n\n"
+        
+        if user_lang == "fr":
+            text += f"🥰 *Votre générosité me permet de:*\n"
+            text += f"• Améliorer les performances du bot\n"
+            text += f"• Ajouter de nouvelles blockchains\n"
+            text += f"• Développer de nouvelles fonctionnalités\n"
+            text += f"• Maintenir le service gratuit\n\n"
+            text += f"💙 Merci de faire partie de l'aventure Whale Radar!"
+        else:
+            text += f"🥰 *Your generosity allows me to:*\n"
+            text += f"• Improve bot performance\n"
+            text += f"• Add new blockchains\n"
+            text += f"• Develop new features\n"
+            text += f"• Keep the service free\n\n"
+            text += f"💙 Thank you for being part of Whale Radar adventure!"
         
         keyboard = {
             "inline_keyboard": [
-                [{"text": "⬅️ Retour", "callback_data": "main_menu"}]
+                [{"text": self.get_text("back", user_lang), "callback_data": "main_menu"}]
             ]
         }
         
@@ -1772,13 +1906,18 @@ class TelegramBot:
         """Send threshold change menu"""
         user_lang = self.get_user_lang(chat_id)
         
-        text = f"🎯 *MODIFIER SEUIL*\n\n"
-        text += f"Cette fonctionnalité sera disponible dans une prochaine mise à jour.\n"
-        text += f"Pour l'instant, les seuils sont prédéfinis pour chaque token."
+        text = f"🎯 *{self.get_text('threshold', user_lang).upper()}*\n\n"
+        
+        if user_lang == "fr":
+            text += f"Cette fonctionnalité sera disponible dans une prochaine mise à jour.\n"
+            text += f"Pour l'instant, les seuils sont prédéfinis pour chaque token."
+        else:
+            text += f"This feature will be available in a future update.\n"
+            text += f"For now, thresholds are predefined for each token."
         
         keyboard = {
             "inline_keyboard": [
-                [{"text": "⬅️ Retour", "callback_data": "settings"}]
+                [{"text": self.get_text("back", user_lang), "callback_data": "settings"}]
             ]
         }
         
@@ -1793,27 +1932,27 @@ class TelegramBot:
         
         user_lang = self.get_user_lang(chat_id)
         
-        text = f"📊 *MES STATISTIQUES*\n\n"
-        text += f"👤 Utilisateur: {chat_id[:8]}...\n"
-        text += f"📈 Tokens activés: **{enabled_count}/{total_count}**\n"
-        text += f"🌍 Langue: **{'Français' if user_lang == 'fr' else 'English'}**\n"
+        text = f"📊 *{self.get_text('stats', user_lang).upper()}*\n\n"
+        text += f"👤 {self.get_text('user', user_lang, 'Utilisateur')}: {chat_id[:8]}...\n"
+        text += f"📈 {self.get_text('tokens', user_lang, 'Tokens')}: **{enabled_count}/{total_count}**\n"
+        text += f"🌍 {self.get_text('language', user_lang)}: **{'Français' if user_lang == 'fr' else 'English'}**\n"
         
         if user_tokens:
             total_threshold = sum(t.get('threshold_usd', 0) for t in user_tokens.values())
             avg_threshold = total_threshold / enabled_count if enabled_count > 0 else 0
             
-            text += f"💰 Total seuil: **${total_threshold:,}**\n"
-            text += f"📊 Moyenne seuil: **${avg_threshold:,.0f}**\n"
+            text += f"💰 {self.get_text('total_threshold', user_lang, 'Total seuil')}: **${total_threshold:,}**\n"
+            text += f"📊 {self.get_text('avg_threshold', user_lang, 'Moyenne seuil')}: **${avg_threshold:,.0f}**\n"
             
             networks = {}
             for symbol, info in user_tokens.items():
                 network = info.get('network', 'other')
                 networks[network] = networks.get(network, 0) + 1
             
-            text += f"🔗 Réseaux actifs: **{len(networks)}**\n\n"
+            text += f"🔗 {self.get_text('active_networks', user_lang, 'Réseaux actifs')}: **{len(networks)}**\n\n"
             
             top_tokens = sorted(user_tokens.items(), key=lambda x: x[1].get('threshold_usd', 0), reverse=True)[:5]
-            text += f"🏆 *TOP 5 TOKENS:*\n"
+            text += f"🏆 *{self.get_text('top_5_tokens', user_lang, 'TOP 5 TOKENS')}:*\n"
             for i, (symbol, info) in enumerate(top_tokens, 1):
                 threshold = info.get('threshold_usd', 0)
                 network_icon = self.network_icons.get(info.get("network", "other"), "🔗")
@@ -1821,7 +1960,7 @@ class TelegramBot:
         
         keyboard = {
             "inline_keyboard": [
-                [{"text": "⬅️ Retour", "callback_data": "main_menu"}]
+                [{"text": self.get_text("back", user_lang), "callback_data": "main_menu"}]
             ]
         }
         
@@ -1830,15 +1969,20 @@ class TelegramBot:
     async def show_token_list(self, chat_id: str):
         """Show list of enabled tokens"""
         user_tokens = self.config.get_tokens_for_user(chat_id)
+        user_lang = self.get_user_lang(chat_id)
         
         if not user_tokens:
-            text = "📭 *AUCUN TOKEN ACTIVÉ*\n\n"
-            text += "Vous devez sélectionner au moins un token pour recevoir des alertes."
+            if user_lang == "fr":
+                text = "📭 *AUCUN TOKEN ACTIVÉ*\n\n"
+                text += "Vous devez sélectionner au moins un token pour recevoir des alertes."
+            else:
+                text = "📭 *NO TOKENS ENABLED*\n\n"
+                text += "You must select at least one token to receive alerts."
             
             keyboard = {
                 "inline_keyboard": [
-                    [{"text": "🎯 Sélectionner Tokens", "callback_data": "select_tokens"}],
-                    [{"text": "⬅️ Retour", "callback_data": "main_menu"}]
+                    [{"text": self.get_text("select_tokens", user_lang), "callback_data": "select_tokens"}],
+                    [{"text": self.get_text("back", user_lang), "callback_data": "main_menu"}]
                 ]
             }
             
@@ -1852,8 +1996,12 @@ class TelegramBot:
                 by_network[network] = []
             by_network[network].append((symbol, info))
         
-        text = f"📋 *MES TOKENS*\n\n"
-        text += f"Total: {len(user_tokens)} tokens activés\n\n"
+        if user_lang == "fr":
+            text = f"📋 *MES TOKENS*\n\n"
+            text += f"Total: {len(user_tokens)} tokens activés\n\n"
+        else:
+            text = f"📋 *MY TOKENS*\n\n"
+            text += f"Total: {len(user_tokens)} tokens enabled\n\n"
         
         for network, token_list in sorted(by_network.items()):
             network_name = network.capitalize()
@@ -1870,7 +2018,7 @@ class TelegramBot:
         
         keyboard = {
             "inline_keyboard": [
-                [{"text": "⬅️ Retour", "callback_data": "main_menu"}]
+                [{"text": self.get_text("back", user_lang), "callback_data": "main_menu"}]
             ]
         }
         
@@ -1879,17 +2027,22 @@ class TelegramBot:
     async def send_admin_menu(self, chat_id: str):
         """Send admin menu"""
         all_users = self.user_manager.get_all_users()
+        user_lang = self.get_user_lang(chat_id)
         
-        text = f"👑 *ADMIN*\n\n"
-        text += f"👥 Utilisateurs: {len(all_users)}\n"
-        text += f"📊 Tokens configurés: {len(self.config.get_all_tokens())}\n\n"
-        text += f"Options d'administration:"
+        text = f"👑 *{self.get_text('admin', user_lang).upper()}*\n\n"
+        text += f"👥 {self.get_text('users', user_lang, 'Utilisateurs')}: {len(all_users)}\n"
+        text += f"📊 {self.get_text('tokens', user_lang, 'Tokens')}: {len(self.config.get_all_tokens())}\n\n"
+        
+        if user_lang == "fr":
+            text += f"Options d'administration:"
+        else:
+            text += f"Administration options:"
         
         keyboard = {
             "inline_keyboard": [
-                [{"text": "📊 Statistiques globales", "callback_data": "admin_stats"}],
-                [{"text": "👥 Liste utilisateurs", "callback_data": "admin_users"}],
-                [{"text": "⬅️ Retour", "callback_data": "main_menu"}]
+                [{"text": f"📊 {self.get_text('global_stats', user_lang, 'Statistiques globales')}", "callback_data": "admin_stats"}],
+                [{"text": f"👥 {self.get_text('users_list', user_lang, 'Liste utilisateurs')}", "callback_data": "admin_users"}],
+                [{"text": self.get_text("back", user_lang), "callback_data": "main_menu"}]
             ]
         }
         
@@ -1914,6 +2067,7 @@ class TelegramBot:
 • `/statistiques` - Mes statistiques
 • `/tokens` - Liste mes tokens
 • `/donation` - Faire un don
+• `/langue` - Changer la langue
 • `/aide` - Cette aide
 
 🔔 *NIVEAUX D'ALERTE:*
@@ -1953,6 +2107,7 @@ class TelegramBot:
 • `/stats` - My statistics
 • `/tokens` - List my tokens
 • `/donation` - Make a donation
+• `/language` - Change language
 • `/help` - This help
 
 🔔 *ALERT LEVELS:*
@@ -2024,7 +2179,7 @@ class WhaleScanner:
             "JUP": 0.7,
             "WIF": 2.8,
             "USDT-BSC": 1.0,
-            "CAKE": 3.5,  # Prix réaliste pour CAKE (PancakeSwap)
+            "CAKE": 3.5,
             "ICP": 12.0,
             "ETC": 25.0,
             "LTC": 70.0,
@@ -2176,29 +2331,42 @@ class WhaleScanner:
         logger.info(f"🚨 ALERT for {chat_id}: {symbol} {action} {formatted_volume} on {network}")
     
     def format_number(self, num: float, decimals: int) -> str:
-        """Format large numbers"""
-        if num >= 1_000_000_000:
-            return f"{num/1_000_000_000:.2f}B"
-        elif num >= 1_000_000:
-            return f"{num/1_000_000:.2f}M"
-        elif num >= 1_000:
-            return f"{num/1_000:.2f}K"
-        elif num >= 1:
-            return f"{num:,.2f}"
-        elif num >= 0.001:
-            return f"{num:.6f}"
-        else:
-            return f"{num:.9f}"
+        """Format large numbers without markdown issues"""
+        try:
+            if num >= 1_000_000_000:
+                formatted = f"{num/1_000_000_000:.2f}B"
+            elif num >= 1_000_000:
+                formatted = f"{num/1_000_000:.2f}M"
+            elif num >= 1_000:
+                formatted = f"{num/1_000:.2f}K"
+            elif num >= 1:
+                formatted = f"{num:,.2f}"
+            elif num >= 0.001:
+                formatted = f"{num:.6f}"
+            else:
+                formatted = f"{num:.9f}"
+            
+            # Remplacer le point décimal par une virgule si c'est du français
+            # Mais pour éviter les problèmes Markdown, on garde le point
+            return formatted.replace(',', '')  # Enlever les virgules pour éviter les problèmes
+        except:
+            return str(num)
     
     def format_currency(self, amount: float) -> str:
-        """Format currency amounts"""
-        if amount >= 1_000_000_000:
-            return f"${amount/1_000_000_000:.2f}B"
-        elif amount >= 1_000_000:
-            return f"${amount/1_000_000:.2f}M"
-        elif amount >= 10_000:
-            return f"${amount/1_000:.1f}K"
-        else:
+        """Format currency amounts without markdown issues"""
+        try:
+            if amount >= 1_000_000_000:
+                formatted = f"${amount/1_000_000_000:.2f}B"
+            elif amount >= 1_000_000:
+                formatted = f"${amount/1_000_000:.2f}M"
+            elif amount >= 10_000:
+                formatted = f"${amount/1_000:.1f}K"
+            else:
+                formatted = f"${amount:,.0f}"
+            
+            # Enlever les virgules pour éviter les problèmes Markdown
+            return formatted.replace(',', '')
+        except:
             return f"${amount:,.0f}"
     
     async def run_scans(self):
@@ -2388,6 +2556,7 @@ class WhaleRadarBot:
         
         logger.info(f"🔗 Health check URL: http://0.0.0.0:{PORT}/health")
         logger.info(f"📊 Stats URL: http://0.0.0.0:{PORT}/stats")
+        logger.info("🤖 Bot ready! Waiting for user commands...")
         
         while True:
             try:
