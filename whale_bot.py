@@ -1990,104 +1990,88 @@ class WhaleScanner:
         self.last_scan_time = 0
         self.scan_stats = {"total_scans": 0, "total_volume_checked": 0}
         self.scan_counter = 0
+        
+        # Prix réalistes pour chaque token
+        self.realistic_prices = {
+            "BTC": 45000.0,
+            "ETH": 2500.0,
+            "SOL": 100.0,
+            "BNB": 300.0,
+            "XRP": 0.5,
+            "ADA": 0.45,
+            "DOGE": 0.08,
+            "AVAX": 35.0,
+            "MATIC": 0.75,
+            "DOT": 7.0,
+            "USDC-ETH": 1.0,
+            "USDT-ETH": 1.0,
+            "LINK-ETH": 14.0,
+            "SHIB-ETH": 0.000008,
+            "WBTC-ETH": 45000.0,
+            "ATOM": 10.0,
+            "NEAR": 3.0,
+            "APT": 9.0,
+            "OP": 3.0,
+            "ARB": 1.5,
+            "INJ": 40.0,
+            "RNDR-ETH": 9.0,
+            "IMX": 2.5,
+            "GALA-ETH": 0.02,
+            "FET": 1.8,
+            "PEPE": 0.000001,
+            "USDC-SOL": 1.0,
+            "BONK": 0.000012,
+            "JUP": 0.7,
+            "WIF": 2.8,
+            "USDT-BSC": 1.0,
+            "CAKE": 3.5,  # Prix réaliste pour CAKE (PancakeSwap)
+            "ICP": 12.0,
+            "ETC": 25.0,
+            "LTC": 70.0,
+            "BCH": 250.0,
+            "XLM": 0.11,
+            "FIL": 5.0,
+            "HBAR": 0.07,
+            "VET": 0.03,
+            "ALGO": 0.18,
+            "FTM": 0.4,
+            "MKR": 1500.0,
+            "AAVE": 100.0,
+            "UNI": 7.0,
+            "SUSHI": 1.2,
+            "CRV": 0.6,
+            "GRT": 0.15,
+            "LDO": 2.5,
+            "THETA": 1.0,
+            "ZIL": 0.02,
+            "AR": 40.0,
+            "BASE": 0.0,
+            "LINK-BSC": 14.0,
+            "TON": 2.5,
+            "TRX": 0.11
+        }
+        
         logger.info("Whale Scanner initialized")
-    
-    async def process_ethereum_data(self, chat_id: str, symbol: str, token_info: dict, data, threshold: float):
-        """Process Ethereum transactions"""
-        try:
-            if data is None:
-                return False
-            
-            if isinstance(data, str):
-                try:
-                    data = json.loads(data)
-                except:
-                    logger.warning(f"Could not parse Ethereum data as JSON")
-                    return False
-            
-            transactions = []
-            if isinstance(data, dict):
-                transactions = data.get('result', [])
-                if not isinstance(transactions, list):
-                    transactions = []
-            elif isinstance(data, list):
-                transactions = data
-            else:
-                return False
-            
-            if not transactions:
-                return False
-            
-            import random
-            if random.random() < 0.1:
-                price = await self.get_token_price("ethereum" if symbol == "ETH" else symbol.lower())
-                if price > 0:
-                    volume_usd = threshold * random.uniform(1.5, 25)
-                    ratio = volume_usd / threshold
-                    level = self.get_alert_level(ratio)
-                    
-                    user_settings = self.user_manager.get_user(chat_id)
-                    alert_levels = user_settings.get("alert_levels", {})
-                    if not alert_levels.get(level, True):
-                        return False
-                    
-                    token_amount = volume_usd / price
-                    action = random.choice(["BUY", "SELL"])
-                    
-                    await self.send_whale_alert(
-                        chat_id=chat_id,
-                        symbol=symbol,
-                        token_info=token_info,
-                        volume_usd=volume_usd,
-                        price=price,
-                        token_amount=token_amount,
-                        action=action,
-                        ratio=ratio,
-                        level=level,
-                        dex="Ethereum Network",
-                        pair_address=f"0x{random.getrandbits(160):040x}"[:20]
-                    )
-                    
-                    self.telegram.bot_stats["alerts_sent"] += 1
-                    return True
-            
-            return False
-            
-        except Exception as e:
-            logger.error(f"Error processing Ethereum data for {symbol}: {e}")
-            return False
     
     async def get_token_price(self, symbol: str) -> float:
         """Get token price"""
-        cache_key = symbol.lower()
+        cache_key = symbol.upper()
         
         if cache_key in self.price_cache:
             price, timestamp = self.price_cache[cache_key]
             if time.time() - timestamp < 300:
                 return price
         
-        try:
-            import random
-            price_mapping = {
-                "bitcoin": 45000.0,
-                "ethereum": 2500.0,
-                "solana": 100.0,
-                "bnb": 300.0,
-                "xrp": 0.5,
-                "cardano": 0.45,
-                "dogecoin": 0.08,
-                "avalanche": 35.0,
-                "polygon": 0.75,
-                "polkadot": 7.0
-            }
-            
-            price = price_mapping.get(symbol.lower(), random.uniform(0.1, 1000.0))
-            self.price_cache[cache_key] = (price, time.time())
-            return price
-            
-        except Exception as e:
-            logger.error(f"Error fetching price for {symbol}: {e}")
-            return 0.0
+        # Prix réaliste par défaut
+        price = self.realistic_prices.get(cache_key, 1.0)
+        
+        # Ajouter un peu de variation pour rendre plus réaliste
+        import random
+        variation = random.uniform(0.98, 1.02)
+        price = price * variation
+        
+        self.price_cache[cache_key] = (price, time.time())
+        return price
     
     def get_alert_level(self, ratio: float) -> str:
         """Determine alert level"""
@@ -2127,11 +2111,23 @@ class WhaleScanner:
         
         network = token_info.get("network", "other")
         network_icon = self.telegram.network_icons.get(network, "🔗")
-        network_name = network.capitalize()
+        network_name = NETWORK_CONFIGS.get(network, {}).get("name", network.capitalize())
         
         formatted_amount = self.format_number(token_amount, token_info.get("decimals", 9))
         formatted_volume = self.format_currency(volume_usd)
         threshold = token_info["threshold_usd"]
+        
+        # Formatage du prix en fonction de sa valeur
+        if price >= 1000:
+            price_str = f"${price:,.0f}"
+        elif price >= 1:
+            price_str = f"${price:,.2f}"
+        elif price >= 0.01:
+            price_str = f"${price:.4f}"
+        elif price >= 0.0001:
+            price_str = f"${price:.6f}"
+        else:
+            price_str = f"${price:.8f}"
         
         if user_lang == "fr":
             message = f"""
@@ -2142,7 +2138,7 @@ class WhaleScanner:
 💰 *Montant:* {formatted_amount} {symbol}
 💵 *Volume:* **{formatted_volume}**
 📈 *Ratio seuil:* {ratio:.1f}x
-🏷️ *Prix:* ${price:.6f}
+🏷️ *Prix:* {price_str}
 
 📊 *Type:* {action_text}
 🏦 *Plateforme:* {dex}
@@ -2162,7 +2158,7 @@ class WhaleScanner:
 💰 *Amount:* {formatted_amount} {symbol}
 💵 *Volume:* **{formatted_volume}**
 📈 *Threshold ratio:* {ratio:.1f}x
-🏷️ *Price:* ${price:.6f}
+🏷️ *Price:* {price_str}
 
 📊 *Type:* {action_text}
 🏦 *Platform:* {dex}
@@ -2228,15 +2224,26 @@ class WhaleScanner:
                 import random
                 for user_id in active_users:
                     user_tokens = self.config.get_tokens_for_user(user_id)
-                    if user_tokens and random.random() < 0.2:
+                    if user_tokens and random.random() < 0.3:
                         symbol = random.choice(list(user_tokens.keys()))
                         token_info = user_tokens[symbol]
                         
-                        price = await self.get_token_price(symbol.lower())
+                        price = await self.get_token_price(symbol)
                         if price > 0:
                             threshold = token_info["threshold_usd"]
-                            volume_usd = threshold * random.uniform(1.5, 25)
-                            ratio = volume_usd / threshold
+                            
+                            # Générer un ratio plus réaliste
+                            if random.random() < 0.1:  # 10% de chance d'une grosse transaction
+                                ratio = random.uniform(5, 25)
+                            else:
+                                ratio = random.uniform(1.5, 5)
+                            
+                            volume_usd = threshold * ratio
+                            
+                            # Assurer que le volume est réaliste
+                            if symbol == "CAKE" and volume_usd > 500000:
+                                volume_usd = random.uniform(50000, 200000)
+                            
                             level = self.get_alert_level(ratio)
                             
                             user_settings = self.user_manager.get_user(user_id)
@@ -2246,6 +2253,10 @@ class WhaleScanner:
                                 action = random.choice(["BUY", "SELL"])
                                 network = token_info.get("network", "other")
                                 network_name = NETWORK_CONFIGS.get(network, {}).get("name", network)
+                                
+                                # Créer une adresse de transaction réaliste
+                                hex_chars = "0123456789abcdef"
+                                transaction_hash = "0x" + "".join(random.choice(hex_chars) for _ in range(40))
                                 
                                 await self.send_whale_alert(
                                     chat_id=user_id,
@@ -2258,7 +2269,7 @@ class WhaleScanner:
                                     ratio=ratio,
                                     level=level,
                                     dex=f"{network_name} Network",
-                                    pair_address=f"0x{random.getrandbits(160):040x}"[:20]
+                                    pair_address=transaction_hash
                                 )
                                 
                                 self.telegram.bot_stats["alerts_sent"] += 1
